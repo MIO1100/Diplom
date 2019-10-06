@@ -14,7 +14,6 @@ class Main(tk.Frame):
 
     def __init__(self, root):
         super().__init__(root)
-        self.parent=root
         self.init_main()
 
     def init_main(self):
@@ -34,18 +33,14 @@ class Main(tk.Frame):
 
         self.label_system_param = tk.Label(self, textvariable=self.txt_system_param)
         self.label_system_param.grid()
-        # self.label_system_param.place(x=10, y=200)
-        # вывод на панель всех веток правил
-        # self.trees()
 
         self.iptables_bool = tk.BooleanVar()
-        self.c1 = tk.Checkbutton(text="firewall status", variable=self.iptables_bool, onvalue=1, offvalue=0,
-                            command=self.off_ok_iptables)
-        self.c1.place(x=10, y=180)
-        self.iptables_bool.set(1)
+        self.check = ttk.Checkbutton(text= "firewall status", variable=self.iptables_bool, command= self.off_ok_iptables)
+        self.check.place(x=10, y=180)
+        self.check_iptables()
         # self.rules()
-        x2 = threading.Thread(target=self.check_iptables())
-        x2.start()
+        # x2 = threading.Thread(target=self.check_iptables)
+        # x2.start()
 
         x = threading.Thread(target=self.update_ip_ports)
         x.start()
@@ -99,18 +94,19 @@ class Main(tk.Frame):
     def check_iptables(self):
         data = subprocess.Popen("sudo systemctl status nftables", shell=True, stdout=subprocess.PIPE).communicate()
         if (bytearray(b' active') in data[0]):
-            self.iptables_bool.set(0)
+            self.iptables_bool.set(True)
         elif (bytearray(b'inactive') in data[0]):
-            self.iptables_bool.set(1)
+            self.iptables_bool.set(False)
         else:
             print("error check")
 
     def off_ok_iptables(self):
         if (self.iptables_bool.get() == False):
-            self.iptables_bool.set(0)
+            self.iptables_bool.set(False)
             subprocess.call("sudo systemctl stop nftables", shell=True, stdout=subprocess.PIPE)
         else:
-            self.iptables_bool.set(1)
+            self.iptables_bool.set(True)
+            print(self.iptables_bool.get())
             subprocess.call("sudo systemctl start nftables", shell=True, stdout=subprocess.PIPE)
 
     def update_ip_ports(self):
