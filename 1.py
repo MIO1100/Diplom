@@ -17,8 +17,6 @@ class Main(tk.Frame):
         self.init_main()
 
     def init_main(self):
-        # self.my_threads=[]
-
         self.toolbar = tk.Frame(bg='#d7d8e0', bd=2)
         self.btn_open_dialog = tk.Button(self.toolbar, text='Add', command=self.open_dialog, bd=0,
                                     compound=tk.TOP)
@@ -27,23 +25,28 @@ class Main(tk.Frame):
         self.txt_system_param.set("NON")
         self.ports = tk.Scrollbar(self)
         self.list = tk.Listbox(yscrollcommand=self.ports.set, width=100, height=5)
-
         self.label_system_param = tk.Label(self, textvariable=self.txt_system_param)
-
         self.iptables_bool = tk.BooleanVar()
-        self.check = ttk.Checkbutton(text= "firewall status", variable=self.iptables_bool, command= self.off_ok_iptables)
-
-
+        self.check = ttk.Checkbutton(text="firewall status", variable=self.iptables_bool, command= self.off_ok_iptables)
         self.str_table=tk.StringVar()
-        self.tables=ttk.Combobox(self, textvariable=self.str_table)
-
+        self.tables=ttk.Combobox(self, textvariable=self.str_table, state='readonly')
+        self.tables.bind('<<ComboboxSelected>>', self.table_list)
+        self.str_chain = tk.StringVar()
+        self.chains = ttk.Combobox(self, textvariable=self.str_chain, state='readonly')
+        self.chains.bind('<<ComboboxSelected>>', self.list_of_rules)
+        self.scroll_rules = tk.Scrollbar(self)
+        self.rules = tk.StringVar(self)
+        self.note_with_rules=tk.Listbox(yscrollcommand=self.scroll_rules, listvariable=self.rules, width=100, height=15)
 
         self.toolbar.pack(side=tk.TOP, fill=tk.X)
         self.btn_open_dialog.pack(side=tk.LEFT)
+
         self.list.pack(side=tk.TOP, fill=tk.X)
         self.label_system_param.grid(row=0, column=0, columnspan=4)
         self.check.place(x=0, y=170)
         self.tables.grid(row=1, column=1)
+        self.chains.grid(row=1, column=2)
+        self.note_with_rules.pack(side=tk.BOTTOM)
 
         x2 = threading.Thread(target=self.check_iptables)
         x2.start()
@@ -53,6 +56,24 @@ class Main(tk.Frame):
         x1.start()
 
         # about system
+    def list_of_rules(self):
+        table=self.tables.get()
+        chain=self.chains.get()
+        chains=self.data.split("table")
+        for i in chains:
+            if table in i:
+                rules=i.split("chain")
+                rules.pop(0)
+                break
+            else: rules=[]
+        for i in rules:
+            if chain in i:
+                a = re.sub("^\s+|\n|\r|\t|\s+$", '', i)
+                rules=re.findall(r"\{(.*?)\}", a)
+                break
+        for i in rules:
+            self.note_with_rules.insert(tk.END, i)
+
 
     def system_parameters(self):
         mem = psutil.virtual_memory().percent
@@ -68,15 +89,25 @@ class Main(tk.Frame):
         self.after(100000, self.system_parameters)
 
     def table_list(self):
-        data = subprocess.Popen("sudo nft list ruleset", shell=True, stdout=subprocess.PIPE).communicate()
-        data = str(data[0], "utf-8")
-        self.tables['values']=re.findall(r"table+?(.*)\{", data)
+        self.data = subprocess.Popen("sudo nft list ruleset", shell=True, stdout=subprocess.PIPE).communicate()
+        self.data = str(self.data[0], "utf-8")
+        self.tables['values']=re.findall(r"table+?(.*)\{", self.data)
 
+        self.tables.current(0)
 
+        self.chain_list()
+
+    def chain_list(self):
+        table=self.tables.get()
+        chains=self.data.split("table"+table)
+        self.chains["values"]=re.findall(r"chain+?(.*)\{", chains[1])
+        self.chains.current(0)
+        self.list_of_rules()
 
     def check_iptables(self):
         data = subprocess.Popen("sudo systemctl status nftables", shell=True, stdout=subprocess.PIPE).communicate()
         self.table_list()
+
         if (bytearray(b' active') in data[0]):
             self.iptables_bool.set(True)
         elif (bytearray(b'inactive') in data[0]):
