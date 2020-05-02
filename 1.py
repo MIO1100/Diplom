@@ -30,10 +30,13 @@ class Main(tk.Frame):
         self.check = ttk.Checkbutton(text="firewall status", variable=self.iptables_bool, command= self.off_ok_iptables)
         self.str_table=tk.StringVar()
         self.tables=ttk.Combobox(self, textvariable=self.str_table, state='readonly')
-        self.tables.bind('<<ComboboxSelected>>', self.table_list)
+        # self.tables['command']=self.table_list()
+        self.tables.bind("<<ComboboxSelected>>", self.table_list)
         self.str_chain = tk.StringVar()
         self.chains = ttk.Combobox(self, textvariable=self.str_chain, state='readonly')
         self.chains.bind('<<ComboboxSelected>>', self.list_of_rules)
+        self.btn_rules = ttk.Button(self, text = "Show chain", command= self.list_of_rules)
+        self.btn_delete = ttk.Button(self, text = "Delete rule", command = self.delete_rule)
         self.scroll_rules = tk.Scrollbar(self)
         self.rules = tk.StringVar(self)
         self.note_with_rules=tk.Listbox(yscrollcommand=self.scroll_rules, listvariable=self.rules, width=100, height=15)
@@ -46,6 +49,8 @@ class Main(tk.Frame):
         self.check.place(x=0, y=170)
         self.tables.grid(row=1, column=1)
         self.chains.grid(row=1, column=2)
+        self.btn_rules.grid(row=1, column=3)
+        self.btn_delete.grid(row=2, column=3)
         self.note_with_rules.pack(side=tk.BOTTOM)
 
         x2 = threading.Thread(target=self.check_iptables)
@@ -55,8 +60,16 @@ class Main(tk.Frame):
         x1 = threading.Thread(target=self.system_parameters)
         x1.start()
 
+
+    def delete_rule(self):
+        select = list(self.note_with_rules.curselection())
+        select.reverse()
+        for i in select:
+            self.note_with_rules.delete(i)
+
         # about system
     def list_of_rules(self):
+        self.note_with_rules.delete(0, tk.END)
         table=self.tables.get()
         chain=self.chains.get()
         chains=self.data.split("table")
@@ -67,11 +80,10 @@ class Main(tk.Frame):
                 break
             else: rules=[]
         for i in rules:
-            if chain in i:
-                a = re.sub("^\s+|\n|\r|\t|\s+$", '', i)
-                rules=re.findall(r"\{(.*?)\}", a)
+            if (chain == i[:len(chain)]):
+                a = re.sub("^\s+|\r|\t|\s+$", '', i).split("\n")
                 break
-        for i in rules:
+        for i in a[1:-1]:
             self.note_with_rules.insert(tk.END, i)
 
 
