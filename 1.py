@@ -20,6 +20,8 @@ class Main(tk.Frame):
         self.toolbar = tk.Frame(bg='#d7d8e0', bd=2)
         self.btn_open_dialog = tk.Button(self.toolbar, text='Add', command=self.open_dialog, bd=0,
                                     compound=tk.TOP)
+        self.btn_save = tk.Button(self.toolbar, text='Save', command=self.save, bd=0,
+                                         compound=tk.TOP)
         # opened ports
         self.txt_system_param = tk.StringVar()
         self.txt_system_param.set("NON")
@@ -30,28 +32,33 @@ class Main(tk.Frame):
         self.check = ttk.Checkbutton(text="firewall status", variable=self.iptables_bool, command= self.off_ok_iptables)
         self.str_table=tk.StringVar()
         self.tables=ttk.Combobox(self, textvariable=self.str_table, state='readonly')
-        # self.tables['command']=self.table_list()
-        self.tables.bind("<<ComboboxSelected>>", self.table_list)
         self.str_chain = tk.StringVar()
         self.chains = ttk.Combobox(self, textvariable=self.str_chain, state='readonly')
-        self.chains.bind('<<ComboboxSelected>>', self.list_of_rules)
-        self.btn_rules = ttk.Button(self, text = "Show chain", command= self.list_of_rules)
-        self.btn_delete = ttk.Button(self, text = "Delete rule", command = self.delete_rule)
+        self.btn_delete_rule = ttk.Button(self, text = "Delete rule", command = self.delete_rule)
+        self.btn_delete_chain = ttk.Button(self, text = "Delete chain", command = self.delete_chain)
+        self.btn_delete_table = ttk.Button(self, text = "Delete table", command = self.delete_table)
+
         self.scroll_rules = tk.Scrollbar(self)
         self.rules = tk.StringVar(self)
         self.note_with_rules=tk.Listbox(yscrollcommand=self.scroll_rules, listvariable=self.rules, width=100, height=15)
 
         self.toolbar.pack(side=tk.TOP, fill=tk.X)
         self.btn_open_dialog.pack(side=tk.LEFT)
+        self.btn_save.pack(side=tk.LEFT)
 
         self.list.pack(side=tk.TOP, fill=tk.X)
         self.label_system_param.grid(row=0, column=0, columnspan=4)
         self.check.place(x=0, y=170)
         self.tables.grid(row=1, column=1)
         self.chains.grid(row=1, column=2)
-        self.btn_rules.grid(row=1, column=3)
-        self.btn_delete.grid(row=2, column=3)
+        self.btn_delete_rule.grid(row=2, column=3)
+        self.btn_delete_chain.grid(row=2, column=2)
+        self.btn_delete_table.grid(row=2, column=1)
         self.note_with_rules.pack(side=tk.BOTTOM)
+
+        self.tables.bind("<<ComboboxSelected>>", lambda event: self.chain_list())
+        self.chains.bind("<<ComboboxSelected>>", lambda event: self.list_of_rules())
+
 
         x2 = threading.Thread(target=self.check_iptables)
         x2.start()
@@ -60,25 +67,34 @@ class Main(tk.Frame):
         x1 = threading.Thread(target=self.system_parameters)
         x1.start()
 
-
+    def delete_chain(self):
+        table = self.tables.get()
+        chain = self.chains.get()
+        subprocess.Popen("sudo nft delete chain "+table+" "+chain, shell=True, stdout=subprocess.PIPE).communicate()
+        self.table_list()
+    def delete_table(self):
+        table = self.tables.get()
+        subprocess.Popen("sudo nft delete table " + table, shell=True, stdout=subprocess.PIPE).communicate()
+        self.table_list()
     def delete_rule(self):
-        select = list(self.note_with_rules.curselection())
-        select.reverse()
-        for i in select:
-            self.note_with_rules.delete(i)
-
+        select = self.note_with_rules.curselection()[0]
+        rule=self.note_with_rules.get(select)
+        self.note_with_rules.delete(select)
+        handle = re.split(r'handle ', rule)[1]
+        table = self.tables.get()
+        chain = self.chains.get()
+        subprocess.Popen("sudo nft delete rule "+table+" "+chain+" handle "+handle, shell=True, stdout=subprocess.PIPE).communicate()
+        self.table_list()
         # about system
     def list_of_rules(self):
         self.note_with_rules.delete(0, tk.END)
         table=self.tables.get()
         chain=self.chains.get()
         chains=self.data.split("table")
-        for i in chains:
-            if table in i:
-                rules=i.split("chain")
-                rules.pop(0)
-                break
-            else: rules=[]
+        if table in chains[1]:
+            rules=chains[1].split("chain")
+            rules.pop(0)
+
         for i in rules:
             if (chain == i[:len(chain)]):
                 a = re.sub("^\s+|\r|\t|\s+$", '', i).split("\n")
@@ -101,11 +117,10 @@ class Main(tk.Frame):
         self.after(100000, self.system_parameters)
 
     def table_list(self):
-        self.data = subprocess.Popen("sudo nft list ruleset", shell=True, stdout=subprocess.PIPE).communicate()
+        self.data = subprocess.Popen("sudo nft --handle list ruleset", shell=True, stdout=subprocess.PIPE).communicate()
         self.data = str(self.data[0], "utf-8")
         self.tables['values']=re.findall(r"table+?(.*)\{", self.data)
 
-        self.tables.current(0)
 
         self.chain_list()
 
@@ -113,8 +128,8 @@ class Main(tk.Frame):
         table=self.tables.get()
         chains=self.data.split("table"+table)
         self.chains["values"]=re.findall(r"chain+?(.*)\{", chains[1])
-        self.chains.current(0)
-        self.list_of_rules()
+        # self.chains.current(0)
+
 
     def check_iptables(self):
         data = subprocess.Popen("sudo systemctl status nftables", shell=True, stdout=subprocess.PIPE).communicate()
@@ -148,14 +163,52 @@ class Main(tk.Frame):
 
     def open_dialog(self):
         Child()
+    def save(self):
+        Save()
 class Child(tk.Toplevel):
     def __init__(self):
         super().__init__(root)
         self.init_child()
 
     def init_child(self):
-        print("11111111111")
+        self.table = tk.Entry(self)
+        self.btn_table = ttk.Button(self, text="Create table", command=self.create_table)
+        self.l_table_text = tk.StringVar()
+        self.l_table = ttk.Label(self, textvariable=self.l_table_text)
 
+
+        self.chain = tk.Entry(self)
+        self.btn_chain = ttk.Button(self, text="Create chain", command=self.create_chain)
+        self.l_chain_text = tk.StringVar()
+        self.l_chain = ttk.Label(self, textvariable=self.l_chain_text)
+
+
+        self.table.grid(row=0, column=0, padx=10, pady=10)
+        self.btn_table.grid(row= 0, column=1, padx=10, pady=10)
+        self.l_table.grid(row=0, column=2, padx=10, pady=10)
+
+        self.chain.grid(row=2, column=0, padx=10, pady=10)
+        self.btn_chain.grid(row=2, column=1, padx=10, pady=10)
+        self.l_chain.grid(row=2, column=2, padx=10, pady=10)
+
+    def create_table(self):
+        if(self.table.get()!=""):
+            if( " " not in self.table.get()):
+                subprocess.call("sudo nft add table "+self.table.get(), shell=True, stdout=subprocess.PIPE)
+                self.l_table_text.set("Ok")
+            else:
+                self.l_table_text.set("False")
+
+    def create_chain(self):
+        print(1)
+
+class Save(tk.Toplevel):
+    def __init__(self):
+        super().__init__(root)
+        self.init_child()
+
+    # def init_child(self):
+    #     save_dialog = tk.
 
 if __name__ == "__main__":
     root = tk.Tk()
