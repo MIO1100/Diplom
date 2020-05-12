@@ -9,6 +9,7 @@ import ports_nmap
 import threading
 import subprocess
 import re
+from tkinter.filedialog import *
 # from some_table import One_of_some
 class Main(tk.Frame):
 
@@ -20,8 +21,10 @@ class Main(tk.Frame):
         self.toolbar = tk.Frame(bg='#d7d8e0', bd=2)
         self.btn_open_dialog = tk.Button(self.toolbar, text='Add', command=self.open_dialog, bd=0,
                                     compound=tk.TOP)
-        self.btn_save = tk.Button(self.toolbar, text='Save', command=self.save, bd=0,
+        self.btn_save = tk.Button(self.toolbar, text='Save', command=self.save_conf, bd=0,
                                          compound=tk.TOP)
+        self.btn_open = tk.Button(self.toolbar, text='Open', command=self.open_conf, bd=0,
+                                  compound=tk.TOP)
         # opened ports
         self.txt_system_param = tk.StringVar()
         self.txt_system_param.set("NON")
@@ -45,6 +48,7 @@ class Main(tk.Frame):
         self.toolbar.pack(side=tk.TOP, fill=tk.X)
         self.btn_open_dialog.pack(side=tk.LEFT)
         self.btn_save.pack(side=tk.LEFT)
+        self.btn_open.pack(side=tk.LEFT)
 
         self.list.pack(side=tk.TOP, fill=tk.X)
         self.label_system_param.grid(row=0, column=0, columnspan=4)
@@ -163,8 +167,16 @@ class Main(tk.Frame):
 
     def open_dialog(self):
         Child()
-    def save(self):
-        Save()
+    def save_conf(self):
+        f = open(asksaveasfilename(), "w", encoding='utf-8')
+        f.write( "#!/usr/sbin/nft -f \n\n flush ruleset \n\n" + subprocess.Popen("sudo nft list ruleset", shell=True, stdout=subprocess.PIPE).communicate()[0].decode("utf-8"))
+        f.close()
+
+    def open_conf(self):
+        subprocess.call("sudo cp /etc/nftables.conf /etc/nftables_old.conf", shell=True, stdout=subprocess.PIPE)
+        subprocess.call("sudo cp "+ askopenfilename() + " /etc/nftables.conf", shell=True, stdout=subprocess.PIPE)
+
+
 class Child(tk.Toplevel):
     def __init__(self):
         super().__init__(root)
@@ -202,13 +214,6 @@ class Child(tk.Toplevel):
     def create_chain(self):
         print(1)
 
-class Save(tk.Toplevel):
-    def __init__(self):
-        super().__init__(root)
-        self.init_child()
-
-    # def init_child(self):
-    #     save_dialog = tk.
 
 if __name__ == "__main__":
     root = tk.Tk()
