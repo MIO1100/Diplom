@@ -1,16 +1,11 @@
 #!/usr/bin/sudo python
-
-
 import tkinter as tk
 from tkinter import ttk
 import psutil
-# import iptc
 import ports_nmap
 import threading
 import subprocess
-import re
 from tkinter.filedialog import *
-# from some_table import One_of_some
 class Main(tk.Frame):
 
     def __init__(self, root):
@@ -18,21 +13,21 @@ class Main(tk.Frame):
         self.init_main()
 
     def init_main(self):
-        self.toolbar = tk.Frame(bg='#d7d8e0', bd=2)
+        self.toolbar = tk.Frame(bg='white')
         self.btn_open_dialog = tk.Button(self.toolbar, text='Add', command=self.open_dialog, bd=0,
                                     compound=tk.TOP)
         self.btn_save = tk.Button(self.toolbar, text='Save', command=self.save_conf, bd=0,
                                          compound=tk.TOP)
         self.btn_open = tk.Button(self.toolbar, text='Open', command=self.open_conf, bd=0,
                                   compound=tk.TOP)
-        # opened ports
+
         self.txt_system_param = tk.StringVar()
         self.txt_system_param.set("NON")
         self.ports = tk.Scrollbar(self)
         self.list = tk.Listbox(yscrollcommand=self.ports.set, width=100, height=5)
         self.label_system_param = tk.Label(self, textvariable=self.txt_system_param)
-        self.iptables_bool = tk.BooleanVar()
-        self.check = ttk.Checkbutton(text="firewall status", variable=self.iptables_bool, command= self.off_ok_iptables)
+        self.nftables_bool = tk.BooleanVar()
+        self.check = ttk.Checkbutton(text="firewall status", variable=self.nftables_bool, command= self.off_ok_nftables)
         self.str_table=tk.StringVar()
         self.tables=ttk.Combobox(self, textvariable=self.str_table, state='readonly')
         self.str_chain = tk.StringVar()
@@ -40,6 +35,7 @@ class Main(tk.Frame):
         self.btn_delete_rule = ttk.Button(self, text = "Delete rule", command = self.delete_rule)
         self.btn_delete_chain = ttk.Button(self, text = "Delete chain", command = self.delete_chain)
         self.btn_delete_table = ttk.Button(self, text = "Delete table", command = self.delete_table)
+        self.btn_delete_rule = ttk.Button(self, text = "Update", command = self.table_list)
 
         self.scroll_rules = tk.Scrollbar(self)
         self.rules = tk.StringVar(self)
@@ -64,7 +60,7 @@ class Main(tk.Frame):
         self.chains.bind("<<ComboboxSelected>>", lambda event: self.list_of_rules())
 
 
-        x2 = threading.Thread(target=self.check_iptables)
+        x2 = threading.Thread(target=self.check_nftables)
         x2.start()
         x = threading.Thread(target=self.update_ip_ports)
         x.start()
@@ -131,24 +127,24 @@ class Main(tk.Frame):
         chains=self.data.split("table"+table)
         self.chains["values"]=re.findall(r"chain+?(.*)\{", chains[1])
 
-    def check_iptables(self):
+    def check_nftables(self):
         data = subprocess.Popen("sudo systemctl status nftables", shell=True, stdout=subprocess.PIPE).communicate()
         self.table_list()
 
         if (bytearray(b' active') in data[0]):
-            self.iptables_bool.set(True)
+            self.nftables_bool.set(True)
         elif (bytearray(b'inactive') in data[0]):
-            self.iptables_bool.set(False)
+            self.nftables_bool.set(False)
         else:
             print("error check")
 
-    def off_ok_iptables(self):
-        if (self.iptables_bool.get() == False):
-            self.iptables_bool.set(False)
+    def off_ok_nftables(self):
+        if (self.nftables_bool.get() == False):
+            self.nftables_bool.set(False)
             subprocess.call("sudo systemctl stop nftables", shell=True, stdout=subprocess.PIPE)
         else:
-            self.iptables_bool.set(True)
-            print(self.iptables_bool.get())
+            self.nftables_bool.set(True)
+            print(self.nftables_bool.get())
             subprocess.call("sudo systemctl start nftables", shell=True, stdout=subprocess.PIPE)
         self.table_list()
 
@@ -251,13 +247,13 @@ class Child(tk.Toplevel):
         self.data = str(self.data[0], "utf-8")
         self.tables['values']=re.findall(r"table+?(.*)\{", self.data)
         self.chain_list()
+
     def chain_list(self):
         self.data = subprocess.Popen("sudo nft --handle list ruleset", shell=True, stdout=subprocess.PIPE).communicate()
         self.data = str(self.data[0], "utf-8")
         table=self.tables.get()
         chains=self.data.split("table"+table)
         self.chains["values"]=re.findall(r"chain+?(.*)\{", chains[1])
-
 
 if __name__ == "__main__":
     root = tk.Tk()
@@ -266,5 +262,4 @@ if __name__ == "__main__":
     root.title("mio")
     root.geometry("900x500")
     root.resizable(False, False)
-
     root.mainloop()

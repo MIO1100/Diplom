@@ -1,5 +1,3 @@
-import socket
-from multiprocessing import Pool
 import ip as ip_ad
 import threading
 import nmap
@@ -7,7 +5,6 @@ import nmap
 q=0
 list=[]
 def port_scan(host):
-
     nm = nmap.PortScanner()
     host = host.strip()
     nm.scan(host)
@@ -42,5 +39,3 @@ if __name__ == '__main__':
     result=start_all()
     for i in result:
         print(i)
-
-#https://codeby.net/threads/pishem-hack-tools-mnogopotochnyj-skaner-ip-diapazonov-ehvoljucija.65543/
