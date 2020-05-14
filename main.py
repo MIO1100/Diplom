@@ -124,16 +124,12 @@ class Main(tk.Frame):
         self.data = subprocess.Popen("sudo nft --handle list ruleset", shell=True, stdout=subprocess.PIPE).communicate()
         self.data = str(self.data[0], "utf-8")
         self.tables['values']=re.findall(r"table+?(.*)\{", self.data)
-
-
         self.chain_list()
 
     def chain_list(self):
         table=self.tables.get()
         chains=self.data.split("table"+table)
         self.chains["values"]=re.findall(r"chain+?(.*)\{", chains[1])
-        # self.chains.current(0)
-
 
     def check_iptables(self):
         data = subprocess.Popen("sudo systemctl status nftables", shell=True, stdout=subprocess.PIPE).communicate()
@@ -188,20 +184,36 @@ class Child(tk.Toplevel):
         self.l_table_text = tk.StringVar()
         self.l_table = ttk.Label(self, textvariable=self.l_table_text)
 
-
+        self.str_tables = tk.StringVar()
+        self.tables = ttk.Combobox(self, textvariable=self.str_tables, state='readonly')
         self.chain = tk.Entry(self)
         self.btn_chain = ttk.Button(self, text="Create chain", command=self.create_chain)
         self.l_chain_text = tk.StringVar()
         self.l_chain = ttk.Label(self, textvariable=self.l_chain_text)
+
+        self.str_chains = tk.StringVar()
+        self.chains = ttk.Combobox(self, textvariable=self.str_chains, state='readonly')
+        self.rule = tk.Entry(self)
+        self.btn_rule = ttk.Button(self, text="Create rule", command=self.create_rule)
+        self.l_rule_text = tk.StringVar()
+        self.l_rule = ttk.Label(self, textvariable=self.l_rule_text)
 
 
         self.table.grid(row=0, column=0, padx=10, pady=10)
         self.btn_table.grid(row= 0, column=1, padx=10, pady=10)
         self.l_table.grid(row=0, column=2, padx=10, pady=10)
 
-        self.chain.grid(row=2, column=0, padx=10, pady=10)
-        self.btn_chain.grid(row=2, column=1, padx=10, pady=10)
-        self.l_chain.grid(row=2, column=2, padx=10, pady=10)
+        self.tables.grid(row=1, column=0, padx=10, pady=10, rowspan=2, sticky=E+W+S+N)
+        self.chain.grid(row=1, column=1, padx=10, pady=10)
+        self.btn_chain.grid(row=1, column=2, padx=10, pady=10)
+        self.l_chain.grid(row=1, column=3, padx=10, pady=10)
+
+        self.chains.grid(row=2, column=1, padx=10, pady=10)
+        self.rule.grid(row=2, column=2, columnspan=2, padx=10, pady=10)
+        self.btn_rule.grid(row=2, column=4, padx=10, pady=10)
+        self.l_rule.grid(row=3, column=0, columnspan=4, padx=10, pady=10)
+
+        self.table_list()
 
     def create_table(self):
         if(self.table.get()!=""):
@@ -210,9 +222,41 @@ class Child(tk.Toplevel):
                 self.l_table_text.set("Ok")
             else:
                 self.l_table_text.set("False")
+        self.table_list()
+
 
     def create_chain(self):
-        print(1)
+        if (self.chains.get() != ""):
+            if (" " not in self.chains.get()):
+                subprocess.call("sudo nft add chain " + self.tables.get() + " "+ self.chains.get(), shell=True, stdout=subprocess.PIPE)
+                self.l_chain_text.set("Ok")
+            else:
+                self.l_chain_text.set("False")
+        self.chain_list()
+    def create_rule(self):
+        if (self.chains.get() != ""):
+            if (self.tables.get() != ""):
+                p = subprocess.Popen(["sudo nft add rule " + self.tables.get() + " "+ self.chains.get() + " "+ self.rule.get()], stdout=subprocess.PIPE,
+                                     stderr=subprocess.PIPE, universal_newlines=True, shell=True)
+                output, errors = p.communicate()
+                # errors = str(errors, "utf-8")
+                if(errors == ''):
+                    self.l_rule_text.set("True")
+                else: self.l_rule_text.set(errors)
+            else:
+                self.l_rule_text.set("False")
+
+    def table_list(self):
+        self.data = subprocess.Popen("sudo nft --handle list ruleset", shell=True, stdout=subprocess.PIPE).communicate()
+        self.data = str(self.data[0], "utf-8")
+        self.tables['values']=re.findall(r"table+?(.*)\{", self.data)
+        self.chain_list()
+    def chain_list(self):
+        self.data = subprocess.Popen("sudo nft --handle list ruleset", shell=True, stdout=subprocess.PIPE).communicate()
+        self.data = str(self.data[0], "utf-8")
+        table=self.tables.get()
+        chains=self.data.split("table"+table)
+        self.chains["values"]=re.findall(r"chain+?(.*)\{", chains[1])
 
 
 if __name__ == "__main__":
