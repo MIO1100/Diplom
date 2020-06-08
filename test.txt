@@ -1,0 +1,24 @@
+{ # handle 4
+	chain input { # handle 1
+		type filter hook input priority filter; policy accept;
+		ct state invalid counter packets 13 bytes 628 drop comment "early drop of invalid packets" # handle 5
+		ct state { established, related } counter packets 86003 bytes 11630584 accept comment "accept all connections related to connections made by us" # handle 6
+		iif "lo" accept comment "accept loopback" # handle 7
+		iif != "lo" ip daddr 127.0.0.0/8 counter packets 0 bytes 0 drop comment "drop connections to loopback not coming from loopback" # handle 8
+		iif != "lo" ip6 daddr ::1 counter packets 0 bytes 0 drop comment "drop connections to loopback not coming from loopback" # handle 9
+		ip protocol icmp counter packets 0 bytes 0 accept comment "accept all ICMP types" # handle 10
+		ip6 nexthdr ipv6-icmp counter packets 0 bytes 0 accept comment "accept all ICMP types" # handle 11
+		tcp dport 22 counter packets 0 bytes 0 accept comment "accept SSH" # handle 12
+		counter packets 3160 bytes 769315 comment "count dropped packets" # handle 13
+	}
+
+	chain forward { # handle 2
+		type filter hook forward priority filter; policy accept;
+		counter packets 0 bytes 0 comment "count dropped packets" # handle 14
+	}
+
+	chain output { # handle 3
+		type filter hook output priority filter; policy accept;
+		counter packets 119535 bytes 52894186 comment "count accepted packets" # handle 15
+	}
+}

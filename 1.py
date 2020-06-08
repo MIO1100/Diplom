@@ -119,7 +119,9 @@ class Main(tk.Frame):
     def table_list(self):
         self.data = subprocess.Popen("sudo nft --handle list ruleset", shell=True, stdout=subprocess.PIPE).communicate()
         self.data = str(self.data[0], "utf-8")
+
         self.tables['values']=re.findall(r"table+?(.*)\{", self.data)
+        self.tables.current(0)
         self.chain_list()
 
     def chain_list(self):
@@ -253,7 +255,7 @@ class Child(tk.Toplevel):
         self.data = str(self.data[0], "utf-8")
         table=self.tables.get()
         chains=self.data.split("table"+table)
-        self.chains["values"]=re.findall(r"chain+?(.*)\{", chains[1])
+        self.chains["values"]=re.findall(r"chain+?(.*)\{", chains[0])
 
 if __name__ == "__main__":
     root = tk.Tk()

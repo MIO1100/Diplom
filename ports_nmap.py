@@ -12,7 +12,7 @@ def port_scan(host):
     for proto in nm[host].all_protocols():
         lport = nm[host][proto].keys()
         for port in lport:
-            list.append(result + "port : " + str(port) + ", state: " + str(nm[host][proto][port]['state']) + ", name: " + str(nm[host][proto][port]['product']))
+            list.append(result + " port : " + str(port) + ", state: " + str(nm[host][proto][port]['state']) + ", name: " + str(nm[host][proto][port]['product']))
 
 def start_all():
     main()
